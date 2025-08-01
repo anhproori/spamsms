@@ -4,6 +4,7 @@ import time
 from datetime import datetime, timedelta, date
 from threading import Lock
 import requests
+from bs4 import BeautifulSoup
 import tempfile
 import subprocess, sys
 import random
