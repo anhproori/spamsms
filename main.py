@@ -3,7 +3,6 @@ import asyncio
 import time
 from datetime import datetime, timedelta, date
 from threading import Lock
-from bs4 import BeautifulSoup
 import requests
 import tempfile
 import subprocess, sys
