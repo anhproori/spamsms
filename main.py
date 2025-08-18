@@ -3,23 +3,33 @@ import asyncio
 import random
 import string
 import time
-import platform
 import os
 
-# Hàm tạo random string
-def generate_random_string(length=10):
-    characters = string.ascii_lowercase + string.digits
-    return ''.join(random.choice(characters) for _ in range(length))
+# Load proxies từ file proxy.txt
+def load_proxies(file_path="proxy.txt"):
+    proxies = []
+    try:
+        with open(file_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    proxies.append(line)
+        return proxies
+    except Exception as e:
+        print(f"Lỗi khi load proxy: {str(e)}")
+        return []
 
-# Hàm tạo tài khoản unique
+def generate_random_string(length=10):
+    chars = string.ascii_lowercase + string.digits
+    return ''.join(random.choice(chars) for _ in range(length))
+
 def generate_unique_credentials():
     username = generate_random_string(10)
     email = f"{generate_random_string(8)}@gmail.com"
     password = "hixinchao"
     return username, email, password
 
-# Hàm đăng ký tài khoản
-async def register_account(session, username, email, password):
+async def register_account(session, username, email, password, proxy):
     data = {
         'username': username,
         'email': email,
@@ -27,49 +37,52 @@ async def register_account(session, username, email, password):
         'repassword': password,
         'recaptcha': '',
     }
+    
+    proxy_url = f"http://{proxy}"
+    
     try:
-        async with session.post('https://randomtdat.site/ajaxs/client/register.php', data=data, timeout=10) as response:
-            text = await response.text()
-            if response.status == 200:
-                print(f"Đăng ký thành công - Username: {username}, Email: {email}")
+        async with session.post(
+            'https://randomtdat.site/ajaxs/client/register.php',
+            data=data,
+            proxy=proxy_url,
+            timeout=10
+        ) as resp:
+            text = await resp.text()
+            if resp.status == 200:
+                print(f"✅ Success - {username} | {email} | Proxy: {proxy}")
+                # Ghi vào file success.txt
                 with open("success.txt", "a") as f:
                     f.write(f"{username}:{email}:{password}\n")
                 return True
             else:
-                print(f"Đăng ký thất bại - Username: {username}, Email: {email}, Status: {response.status}")
+                print(f"❌ Fail - {username} | Status: {resp.status} | Proxy: {proxy}")
                 return False
     except Exception as e:
-        print(f"Lỗi - Username: {username}, Email: {email}, Lỗi: {str(e)}")
+        print(f"⚠️ Lỗi - {username} | {e} | Proxy: {proxy}")
         return False
 
-# Hàm chính
 async def main():
-    account_count = 0
-    max_concurrent = 5  # số luồng chạy cùng lúc
-    semaphore = asyncio.Semaphore(max_concurrent)
-    
-    async def bounded_register(username, email, password):
+    proxies = load_proxies()
+    if not proxies:
+        print("Không tìm thấy proxy.txt hoặc proxy trống")
+        return
+
+    semaphore = asyncio.Semaphore(5)  # giới hạn task đồng thời
+
+    async def bounded_register(username, email, password, proxy):
         async with semaphore:
             async with aiohttp.ClientSession() as session:
-                return await register_account(session, username, email, password)
-    
+                await register_account(session, username, email, password, proxy)
+
     while True:
         tasks = []
-        for _ in range(max_concurrent):
+        for _ in range(5):  # 5 tài khoản cùng lúc
             username, email, password = generate_unique_credentials()
-            tasks.append(bounded_register(username, email, password))
-        
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        for result in results:
-            if result and not isinstance(result, Exception):
-                account_count += 1
-                print(f"Tổng tài khoản đã đăng ký: {account_count}")
-        
-        await asyncio.sleep(0.1)
+            proxy = random.choice(proxies)
+            tasks.append(bounded_register(username, email, password, proxy))
 
-# Chạy script
+        await asyncio.gather(*tasks)
+        await asyncio.sleep(1)  # nghỉ 1s trước batch tiếp theo
+
 if __name__ == "__main__":
-    if platform.system() == "Emscripten":
-        asyncio.ensure_future(main())
-    else:
-        asyncio.run(main())
+    asyncio.run(main())
