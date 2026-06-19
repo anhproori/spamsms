@@ -24,6 +24,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 TOKEN = os.getenv("TELEGRAM_TOKEN", "8749959758:AAFmtPMn_hMDuiSTh-WthbwLySegJSareQI") 
 PORT = int(os.getenv("PORT", 8080))
 
+# 🌟 BỔ SUNG: Điền link Render của bạn vào đây (Hoặc cấu hình qua Environment biến RENDER_EXTERNAL_URL)
+RENDER_APP_URL = os.getenv("RENDER_EXTERNAL_URL", "https://ten-app-cua-ban.onrender.com")
+
 # Khóa dùng để quản lý trạng thái chạy của từng user
 user_tasks = {}
 # Lưu dữ liệu cấu trúc mẫu
@@ -286,6 +289,25 @@ async def start_web_server():
     await site.start()
     print(f"Web Server phục vụ Render đã kích hoạt tại Port: {PORT}")
 
+# ================= 🌟 BỔ SUNG: VÒNG LẶP SELF-PING TỰ ĐỘNG GIỮ LIVE =================
+async def self_ping_loop():
+    """Hàm chạy ngầm vĩnh viễn, cứ 10 phút tự gọi vào web của mình để Render không tắt"""
+    await asyncio.sleep(15)  # Chờ Web Server khởi động ổn định ban đầu
+    print("🤖 Hệ thống Self-Ping ngầm chống ngủ đã kích hoạt...")
+    
+    while True:
+        try:
+            # Chỉ chạy khi link cấu hình không phải link mẫu
+            if "ten-app-cua-ban" not in RENDER_APP_URL:
+                # Gọi lệnh GET request đến chính nó
+                response = requests.get(RENDER_APP_URL, timeout=10)
+                print(f"⏰ [Self-Ping Log] Đã tự giữ kết nối lúc {datetime.now().strftime('%H:%M:%S')}. Status: {response.status_code}")
+        except Exception as e:
+            print(f"❌ [Self-Ping Log] Lỗi giữ ping: {e}")
+        
+        # Nghỉ 10 phút (600 giây) trước đợt ping kế tiếp
+        await asyncio.sleep(600)
+
 # ================= HÀM KHỞI CHẠY CHÍNH =================
 def main():
     # Khởi tạo Telegram Bot ứng dụng bất đồng bộ
@@ -299,6 +321,9 @@ def main():
     # Tích hợp chạy Web server song song cùng bot
     loop = asyncio.get_event_loop()
     loop.run_until_complete(start_web_server())
+
+    # 🌟 BỔ SUNG: Nạp hàm Self-Ping vào danh sách tác vụ chạy nền của hệ thống
+    loop.create_task(self_ping_loop())
 
     print("Bot Telegram đang lắng nghe tín hiệu...")
     bot_app.run_polling(allowed_updates=Update.ALL_TYPES)
