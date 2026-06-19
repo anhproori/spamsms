@@ -14,7 +14,7 @@ import telebot
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # --- CẤU HÌNH BIẾN MÔI TRƯỜNG TELEGRAM BOT ---
-TOKEN = os.getenv("TELEGRAM_TOKEN", "YOUR_BOT_TOKEN_HERE")
+TOKEN = os.getenv("TELEGRAM_TOKEN", "8749959758:AAFmtPMn_hMDuiSTh-WthbwLySegJSareQI")
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
